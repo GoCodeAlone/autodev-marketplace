@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "GoCodeAlone superpowers fork with alignment, autonomy, and Agent Teams",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {
@@ -16,7 +16,7 @@
         "url": "https://github.com/GoCodeAlone/claude-superpowers.git"
       },
       "description": "Core skills library with Agent Teams, alignment checks, and full autonomy pipeline",
-      "version": "5.1.0",
+      "version": "5.2.0",
       "strict": true
     }
   ]
