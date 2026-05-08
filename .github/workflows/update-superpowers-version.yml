@@ -4,12 +4,38 @@ on:
   repository_dispatch:
     types: [superpowers-version-bump]
 
+concurrency:
+  group: update-superpowers-version
+  cancel-in-progress: false
+
 jobs:
   update-version:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Validate sender and version
+        env:
+          SENDER: ${{ github.event.sender.login }}
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+          # Only accept dispatches from the trusted owner organisation
+          TRUSTED_SENDER="GoCodeAlone"
+          if [[ "$SENDER" != "$TRUSTED_SENDER" ]]; then
+            echo "ERROR: untrusted sender '${SENDER}' (expected '${TRUSTED_SENDER}')" >&2
+            exit 1
+          fi
+          # Require a non-empty, SemVer-like version (with optional leading 'v')
+          if [[ -z "${VERSION:-}" ]]; then
+            echo "ERROR: version not provided in client_payload" >&2
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.+\-][a-zA-Z0-9._+\-]*)?$ ]]; then
+            echo "ERROR: version '${VERSION}' does not match expected SemVer format" >&2
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -17,25 +43,31 @@ jobs:
         env:
           VERSION: ${{ github.event.client_payload.version }}
         run: |
-          if [[ -z "${VERSION:-}" ]]; then
-            echo "ERROR: version not provided in client_payload" >&2
-            exit 1
-          fi
+          set -euo pipefail
           FILE=".claude-plugin/marketplace.json"
-          # Use jq to update the version field for the superpowers plugin
           tmp=$(mktemp)
           trap 'rm -f "$tmp"' EXIT
-          jq --exit-status --arg v "$VERSION" \
+          # Verify the superpowers plugin entry exists before updating
+          count=$(jq '[.plugins[] | select(.name == "superpowers")] | length' "$FILE")
+          if [[ "$count" -eq 0 ]]; then
+            echo "ERROR: no plugin named 'superpowers' found in ${FILE}" >&2
+            exit 1
+          fi
+          # Strip a leading 'v' from the version string if present
+          BARE_VERSION="${VERSION#v}"
+          jq --arg v "$BARE_VERSION" \
             '(.plugins[] | select(.name == "superpowers") | .version) = $v' \
-            "$FILE" > "$tmp" || { echo "ERROR: jq failed to find superpowers plugin in ${FILE}" >&2; exit 1; }
+            "$FILE" > "$tmp"
           mv "$tmp" "$FILE"
           trap - EXIT
-          echo "Updated superpowers plugin version to ${VERSION} in ${FILE}"
+          echo "Updated superpowers plugin version to ${BARE_VERSION} in ${FILE}"
 
       - name: Commit and push
         env:
           VERSION: ${{ github.event.client_payload.version }}
         run: |
+          set -euo pipefail
+          BARE_VERSION="${VERSION#v}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .claude-plugin/marketplace.json
@@ -43,5 +75,5 @@ jobs:
             echo "No changes to commit (version already up to date)"
             exit 0
           fi
-          git commit -m "chore: bump superpowers plugin to ${VERSION}"
+          git commit -m "chore: bump superpowers plugin to ${BARE_VERSION}"
           git push
