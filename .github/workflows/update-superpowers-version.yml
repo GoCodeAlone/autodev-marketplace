@@ -1,0 +1,47 @@
+name: Update Superpowers Version
+
+on:
+  repository_dispatch:
+    types: [superpowers-version-bump]
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update superpowers plugin version
+        env:
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          if [[ -z "${VERSION:-}" ]]; then
+            echo "ERROR: version not provided in client_payload" >&2
+            exit 1
+          fi
+          FILE=".claude-plugin/marketplace.json"
+          # Use jq to update the version field for the superpowers plugin
+          tmp=$(mktemp)
+          trap 'rm -f "$tmp"' EXIT
+          jq --exit-status --arg v "$VERSION" \
+            '(.plugins[] | select(.name == "superpowers") | .version) = $v' \
+            "$FILE" > "$tmp" || { echo "ERROR: jq failed to find superpowers plugin in ${FILE}" >&2; exit 1; }
+          mv "$tmp" "$FILE"
+          trap - EXIT
+          echo "Updated superpowers plugin version to ${VERSION} in ${FILE}"
+
+      - name: Commit and push
+        env:
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .claude-plugin/marketplace.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit (version already up to date)"
+            exit 0
+          fi
+          git commit -m "chore: bump superpowers plugin to ${VERSION}"
+          git push
