@@ -16,7 +16,7 @@
         "url": "https://github.com/GoCodeAlone/claude-superpowers.git"
       },
       "description": "Core skills library with Agent Teams, alignment checks, and full autonomy pipeline",
-      "version": "5.7.0",
+      "version": "5.7.2",
       "strict": true
     }
   ]
