@@ -20,8 +20,11 @@ jobs:
           VERSION: ${{ github.event.client_payload.version }}
         run: |
           set -euo pipefail
-          # Only accept dispatches from the trusted owner organisation
-          TRUSTED_SENDER="GoCodeAlone"
+          # Only accept dispatches from the trusted owner account.
+          # github.event.sender.login is always a user login, never an org slug,
+          # so this must be a GitHub username (the account whose token is used
+          # by the upstream claude-superpowers release workflow to dispatch).
+          TRUSTED_SENDER="intel352"
           if [[ "$SENDER" != "$TRUSTED_SENDER" ]]; then
             echo "ERROR: untrusted sender '${SENDER}' (expected '${TRUSTED_SENDER}')" >&2
             exit 1
