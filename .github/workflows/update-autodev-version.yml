@@ -1,11 +1,11 @@
-name: Update Superpowers Version
+name: Update Autodev Version
 
 on:
   repository_dispatch:
-    types: [superpowers-version-bump]
+    types: [autodev-version-bump]
 
 concurrency:
-  group: update-superpowers-version
+  group: update-autodev-version
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
           # Only accept dispatches from the trusted owner account.
           # github.event.sender.login is always a user login, never an org slug,
           # so this must be a GitHub username (the account whose token is used
-          # by the upstream claude-superpowers release workflow to dispatch).
+          # by the upstream autonomous-dev-kit release workflow to dispatch).
           TRUSTED_SENDER="intel352"
           if [[ "$SENDER" != "$TRUSTED_SENDER" ]]; then
             echo "ERROR: untrusted sender '${SENDER}' (expected '${TRUSTED_SENDER}')" >&2
@@ -42,7 +42,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Update superpowers plugin version
+      - name: Update autodev plugin version
         env:
           VERSION: ${{ github.event.client_payload.version }}
         run: |
@@ -50,20 +50,20 @@ jobs:
           FILE=".claude-plugin/marketplace.json"
           tmp=$(mktemp)
           trap 'rm -f "$tmp"' EXIT
-          # Verify the superpowers plugin entry exists before updating
-          count=$(jq '[.plugins[] | select(.name == "superpowers")] | length' "$FILE")
+          # Verify the autodev plugin entry exists before updating
+          count=$(jq '[.plugins[] | select(.name == "autodev")] | length' "$FILE")
           if [[ "$count" -eq 0 ]]; then
-            echo "ERROR: no plugin named 'superpowers' found in ${FILE}" >&2
+            echo "ERROR: no plugin named 'autodev' found in ${FILE}" >&2
             exit 1
           fi
           # Strip a leading 'v' from the version string if present
           BARE_VERSION="${VERSION#v}"
           jq --arg v "$BARE_VERSION" \
-            '(.plugins[] | select(.name == "superpowers") | .version) = $v' \
+            '(.plugins[] | select(.name == "autodev") | .version) = $v' \
             "$FILE" > "$tmp"
           mv "$tmp" "$FILE"
           trap - EXIT
-          echo "Updated superpowers plugin version to ${BARE_VERSION} in ${FILE}"
+          echo "Updated autodev plugin version to ${BARE_VERSION} in ${FILE}"
 
       - name: Commit and push
         env:
@@ -78,5 +78,5 @@ jobs:
             echo "No changes to commit (version already up to date)"
             exit 0
           fi
-          git commit -m "chore: bump superpowers plugin to ${BARE_VERSION}"
+          git commit -m "chore: bump autodev plugin to ${BARE_VERSION}"
           git push

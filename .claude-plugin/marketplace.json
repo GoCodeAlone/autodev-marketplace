@@ -1,22 +1,22 @@
 {
-  "name": "superpowers-marketplace",
+  "name": "claude-marketplace",
   "owner": {
     "name": "Jon Langevin",
-    "email": "codingsloth@pm.me"
+    "email": "jon@gocodealone.com"
   },
   "metadata": {
-    "description": "GoCodeAlone superpowers fork with alignment, autonomy, and Agent Teams",
-    "version": "1.0.1"
+    "description": "GoCodeAlone Claude plugin marketplace",
+    "version": "2.0.0"
   },
   "plugins": [
     {
-      "name": "superpowers",
+      "name": "autodev",
       "source": {
         "source": "url",
-        "url": "https://github.com/GoCodeAlone/claude-superpowers.git"
+        "url": "https://github.com/GoCodeAlone/autonomous-dev-kit.git"
       },
-      "description": "Core skills library with Agent Teams, alignment checks, and full autonomy pipeline",
-      "version": "5.7.2",
+      "description": "Autonomous development workflow skills for coding agents",
+      "version": "6.0.0",
       "strict": true
     }
   ]
