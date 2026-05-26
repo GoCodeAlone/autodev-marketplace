@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Validate sender and version
         env:
@@ -65,12 +66,14 @@ jobs:
           trap - EXIT
           echo "Updated autodev plugin version to ${BARE_VERSION} in ${FILE}"
 
-      - name: Commit and push
+      - name: Commit, push branch, and open PR
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.event.client_payload.version }}
         run: |
           set -euo pipefail
           BARE_VERSION="${VERSION#v}"
+          BRANCH="chore/bump-autodev-${BARE_VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .claude-plugin/marketplace.json
@@ -78,5 +81,16 @@ jobs:
             echo "No changes to commit (version already up to date)"
             exit 0
           fi
+          git checkout -b "$BRANCH"
           git commit -m "chore: bump autodev plugin to ${BARE_VERSION}"
-          git push
+          git push -u origin "$BRANCH"
+          existing=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            echo "PR #${existing} already open for ${BRANCH}"
+            exit 0
+          fi
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: bump autodev plugin to ${BARE_VERSION}" \
+            --body "Automated marketplace bump for autodev ${BARE_VERSION}."
