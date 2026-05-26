@@ -1,12 +1,12 @@
 {
-  "name": "claude-marketplace",
+  "name": "autodev-marketplace",
   "owner": {
     "name": "Jon Langevin",
     "email": "jon@gocodealone.com"
   },
   "metadata": {
-    "description": "GoCodeAlone Claude plugin marketplace",
-    "version": "2.0.0"
+    "description": "GoCodeAlone Autodev plugin marketplace",
+    "version": "2.0.1"
   },
   "plugins": [
     {
@@ -16,7 +16,7 @@
         "url": "https://github.com/GoCodeAlone/autonomous-dev-kit.git"
       },
       "description": "Autonomous development workflow skills for coding agents",
-      "version": "6.0.1",
+      "version": "6.0.2",
       "strict": true
     }
   ]
