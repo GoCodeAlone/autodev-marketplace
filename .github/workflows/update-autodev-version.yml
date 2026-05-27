@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - name: Validate sender and version
         env:
@@ -66,14 +65,12 @@ jobs:
           trap - EXIT
           echo "Updated autodev plugin version to ${BARE_VERSION} in ${FILE}"
 
-      - name: Commit, push branch, and open PR
+      - name: Commit and push directly to main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.event.client_payload.version }}
         run: |
           set -euo pipefail
           BARE_VERSION="${VERSION#v}"
-          BRANCH="chore/bump-autodev-${BARE_VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .claude-plugin/marketplace.json
@@ -81,16 +78,13 @@ jobs:
             echo "No changes to commit (version already up to date)"
             exit 0
           fi
-          git checkout -b "$BRANCH"
+          # Push directly to main: marketplace.json bumps are a one-line
+          # JSON edit and the upstream tag is already the gate. Skipping the
+          # PR roundtrip avoids the queue + accidental duplicate PRs (e.g.
+          # when an external monitor also opens one for the same bump).
           git commit -m "chore: bump autodev plugin to ${BARE_VERSION}"
-          git push -u origin "$BRANCH"
-          existing=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
-          if [[ -n "$existing" ]]; then
-            echo "PR #${existing} already open for ${BRANCH}"
-            exit 0
-          fi
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore: bump autodev plugin to ${BARE_VERSION}" \
-            --body "Automated marketplace bump for autodev ${BARE_VERSION}."
+          # Rebase-pull in case main moved between checkout and push (rare
+          # but harmless for a single-file JSON edit). Fail loud if conflict
+          # so we never overwrite unrelated commits.
+          git pull --rebase origin main
+          git push origin HEAD:main
