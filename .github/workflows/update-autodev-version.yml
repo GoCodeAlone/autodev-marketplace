@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Validate sender and version
         env:
@@ -65,12 +66,14 @@ jobs:
           trap - EXIT
           echo "Updated autodev plugin version to ${BARE_VERSION} in ${FILE}"
 
-      - name: Commit and push directly to main
+      - name: Commit, push branch, open PR, enable auto-merge
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ github.event.client_payload.version }}
         run: |
           set -euo pipefail
           BARE_VERSION="${VERSION#v}"
+          BRANCH="chore/bump-autodev-${BARE_VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .claude-plugin/marketplace.json
@@ -78,13 +81,35 @@ jobs:
             echo "No changes to commit (version already up to date)"
             exit 0
           fi
-          # Push directly to main: marketplace.json bumps are a one-line
-          # JSON edit and the upstream tag is already the gate. Skipping the
-          # PR roundtrip avoids the queue + accidental duplicate PRs (e.g.
-          # when an external monitor also opens one for the same bump).
+          # Branch + PR + auto-merge.
+          #
+          # Why not direct push? The gocodealone enterprise has a Default
+          # ruleset on ~DEFAULT_BRANCH of ~ALL repos that requires
+          # pull_request + CodeQL + code_quality + copilot_code_review.
+          # Direct push from this workflow is rejected with GH013. We can't
+          # override enterprise rulesets at the repo level, but the rules
+          # require zero approving reviews -- only scanners must pass --
+          # so opening a PR with `gh pr merge --auto` is effectively
+          # zero-touch: the PR self-merges the moment CodeQL/code_quality/
+          # Copilot complete (typically <2 min on a one-line JSON edit).
+          git checkout -b "$BRANCH"
           git commit -m "chore: bump autodev plugin to ${BARE_VERSION}"
-          # Rebase-pull in case main moved between checkout and push (rare
-          # but harmless for a single-file JSON edit). Fail loud if conflict
-          # so we never overwrite unrelated commits.
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git push -u origin "$BRANCH"
+          existing=$(gh pr list --head "$BRANCH" --base main --state open \
+            --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            pr_num="$existing"
+            echo "PR #${pr_num} already open for ${BRANCH}"
+          else
+            pr_url=$(gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore: bump autodev plugin to ${BARE_VERSION}" \
+              --body "Automated marketplace bump for autodev ${BARE_VERSION}. Self-merging once required status checks pass (CodeQL, code_quality, copilot_code_review).")
+            pr_num="${pr_url##*/}"
+          fi
+          # Enable auto-merge. PR will squash-merge the moment required
+          # status checks pass; the branch is deleted on merge. If the
+          # checks fail or Copilot leaves unresolved threads, the PR
+          # stays open for human triage.
+          gh pr merge "$pr_num" --auto --squash --delete-branch
