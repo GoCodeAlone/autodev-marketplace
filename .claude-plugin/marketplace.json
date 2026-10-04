@@ -16,7 +16,7 @@
         "url": "https://github.com/GoCodeAlone/autonomous-dev-kit.git"
       },
       "description": "Autonomous development workflow skills for coding agents",
-      "version": "6.5.11",
+      "version": "6.6.2",
       "strict": true
     }
   ]
