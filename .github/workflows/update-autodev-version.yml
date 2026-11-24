@@ -81,17 +81,8 @@ jobs:
             echo "No changes to commit (version already up to date)"
             exit 0
           fi
-          # Branch + PR + auto-merge.
-          #
-          # Why not direct push? The gocodealone enterprise has a Default
-          # ruleset on ~DEFAULT_BRANCH of ~ALL repos that requires
-          # pull_request + CodeQL + code_quality + copilot_code_review.
-          # Direct push from this workflow is rejected with GH013. We can't
-          # override enterprise rulesets at the repo level, but the rules
-          # require zero approving reviews -- only scanners must pass --
-          # so opening a PR with `gh pr merge --auto` is effectively
-          # zero-touch: the PR self-merges the moment CodeQL/code_quality/
-          # Copilot complete (typically <2 min on a one-line JSON edit).
+          # Open a PR instead of pushing directly to the protected default
+          # branch. GitHub applies the effective repository merge requirements.
           git checkout -b "$BRANCH"
           git commit -m "chore: bump autodev plugin to ${BARE_VERSION}"
           git push -u origin "$BRANCH"
@@ -105,11 +96,8 @@ jobs:
               --base main \
               --head "$BRANCH" \
               --title "chore: bump autodev plugin to ${BARE_VERSION}" \
-              --body "Automated marketplace bump for autodev ${BARE_VERSION}. Self-merging once required status checks pass (CodeQL, code_quality, copilot_code_review).")
+              --body "Automated marketplace bump for autodev ${BARE_VERSION}. Auto-merge waits for the repository’s required checks and merge rules.")
             pr_num="${pr_url##*/}"
           fi
-          # Enable auto-merge. PR will squash-merge the moment required
-          # status checks pass; the branch is deleted on merge. If the
-          # checks fail or Copilot leaves unresolved threads, the PR
-          # stays open for human triage.
+          # Enable auto-merge without bypassing repository protections.
           gh pr merge "$pr_num" --auto --squash --delete-branch
